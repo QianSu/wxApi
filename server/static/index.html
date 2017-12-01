@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>测颜值</title>
+    <style>
+        .masked {
+            text-align: center;
+            background-image: -webkit-linear-gradient(left, #147B96, #E6D205 25%, #147B96 50%, #E6D205 75%, #147B96);
+            -webkit-text-fill-color: transparent;
+            -webkit-background-clip: text;
+            -webkit-background-size: 200% 100%;
+            -webkit-animation: masked-animation 4s infinite linear;
+        }
+
+        @-webkit-keyframes masked-animation {
+            0% {
+                background-position: 0 0;
+            }
+            100% {
+                background-position: -100% 0;
+            }
+        }
+
+        .btn {
+            background: crimson;
+            text-align: center;
+            margin: 0 auto;
+            width: 40%;
+            color: #fff;
+            height: 40px;
+            line-height: 40px;
+        }
+        .face{
+            color: darkslateblue
+        }
+    </style>
+</head>
+
+<body>
+    <div class="masked">
+        <h1>快来测一下你的颜值吧</h1>
+
+    </div>
+    <div class="btn">点击上传图片</div>
+    <input type="file" id="file" style="display:none"  accept="image/*">
+    <p>
+        <img src="./img/666.jpg" width="100%" class="img" width="100%">
+    </p>
+    <div class="face">
+
+    </div>
+
+    <script src="http://res.wx.qq.com/open/js/jweixin-1.2.0.js"></script>
+    <script src="https://cdn.bootcss.com/jquery/3.2.1/jquery.js"></script>
+    <script src="./js/lrz.all.bundle.js"></script>
+    <script>
+        var pk='';
+        
+        $('.btn').get(0).addEventListener('click', function () {
+
+            $('#file').click();
+        })
+        /////////////////////正文
+        document.querySelector('#file').addEventListener('change', function () {
+            lrz(this.files[0])
+                .then(function (rst) {
+                   // alert(rst)
+                    $('.img').attr({
+                        src: rst.base64
+                    })
+                    getFace(rst.base64)
+                    //   getData(rst.base64)
+                })
+                .catch(function (err) {
+                    // 处理失败会执行
+                })
+                .always(function () {
+                    // 不管是成功失败，都会执行
+                });
+        });
+
+        function getData(src) {
+            $.ajax({
+                url: 'http://tysbgpu.market.alicloudapi.com/api/predict/ocr_general',
+                type: 'POST',
+                beforeSend: function (xhr) {
+                    xhr.setRequestHeader('Authorization', 'APPCODE 213bd2f723634616a9a2207fdd228e52');
+                },
+                dataType: 'json',
+                data: JSON.stringify({
+                    "image": src.replace(/data:image\/jpeg;base64,/, ''),
+                    "configure": {
+                        min_size: 16,
+                        output_prob: true
+                    }
+                })
+            })
+        }
+
+        function getFace(src) {
+            $.ajax({
+
+                url: 'http://faceall.market.alicloudapi.com/v2/detection/detect',
+                contentType: 'application/json',
+                type: 'POST',
+                beforeSend: function (xhr) {
+                    xhr.setRequestHeader('Authorization', 'APPCODE 213bd2f723634616a9a2207fdd228e52');
+                },
+                dataType: 'json',
+                data: JSON.stringify({
+                    "attributes": "true",
+                    "img_base64": src
+
+
+                }),
+                success: function (res) {
+                    var data = res.faces[0];
+                    if (res.faces.length > 0) {
+                        if (res.faces.length == 1) {
+                            var str = '';
+                            str += '<h1>你的颜值分：'+data.attributes.beauty+'</h1>';
+                            str += '<div>';
+                            str += '<p> 你的年龄: '+data.attributes.age+' </p>';
+                            str += '<p> 你的性别是: '+sex(data.attributes.gender[0].kind)+' </p>';
+                            str += '</div>';
+                            pk=data.attributes.beauty;
+                        
+                            $('.face').html(str)
+                        }else{
+                            alert('图上的脸太多，我处理不过来啊')
+                        }
+                    }else{
+                        alert('麻烦你上传一张清晰点的，好嘛？')
+                    }
+                    setTimeout(function(){
+                        alert('点击右上角，分享到朋友圈吧')
+                    },1000)
+                    weixin()
+                }
+            })
+        }
+       console.log(pk)
+        function sex(option){
+            if(option=='male'){
+                return '男'
+            }else{
+                return '女'
+            }
+
+        }
+       
+        var wx = window.wx;
+        //var url = location.href.split('#')[0];
+        var url = location.href;
+        if (url.indexOf('?') > -1) {
+            location.href = location.href.split('?')[0];
+        }
+        var baseUrl = '';
+     
+      function weixin(){
+          //网页sdk授权
+        $.ajax({
+            url: baseUrl + '/wechat-signature?url=' + url,
+            success: function (data) {
+
+                if (data.success) {
+                    var data = data.params;
+                    console.log(data.appId)
+                    wx.config({
+
+                        debug: false, // 开启调试模式,调用的所有api的返回值会在客户端alert出来，若要查看传入的参数，可以在pc端打开，参数信息会通过log打出，仅在pc端时才会打印。
+
+                        appId: data.appId, // 必填，公众号的唯一标识
+
+                        timestamp: data.timestamp, // 必填，生成签名的时间戳
+
+                        nonceStr: data.noncestr, // 必填，生成签名的随机串
+
+                        signature: data.signature, // 必填，签名，见附录1
+
+                        jsApiList: [
+                            'uploadImage',
+                            'chooseImage',
+                            'downloadImage',
+                            'onMenuShareTimeline',
+                            'hideAllNonBaseMenuItem',
+                            'showMenuItems',
+                            'onMenuShareAppMessage'
+
+                        ] // 必填，需要使用的JS接口列表，所有JS接口列表见附录2
+
+                    });
+              
+                    wx.ready(function () {
+                      
+                        wx.onMenuShareTimeline({
+                            title: '我的颜值是'+pk, // 分享标题
+                            link: document.url, // 分享链接
+                            desc: '美滋滋。。',
+                            imgUrl: 'http://huangshan.free.ngrok.cc/img/666.jpg', // 分享图标
+                            success: function () {
+                                alert('感谢分享')
+                            },
+                            cancel: function () {
+                                alert('鄙视你哦')
+                            }
+                        });
+                        wx.onMenuShareAppMessage({
+
+                            title:  '我的颜值是'+pk, // 分享标题
+
+                            desc: '美滋滋。。', // 分享描述
+
+                            link: document.url, // 分享链接，该链接域名或路径必须与当前页面对应的公众号JS安全域名一致
+
+                            imgUrl: 'http://huangshan.free.ngrok.cc/img/666.jpg', // 分享图标
+
+                            type: 'link', // 分享类型,music、video或link，不填默认为link
+
+                            dataUrl: '', // 如果type是music或video，则要提供数据链接，默认为空
+
+                            success: function () {
+                                alert('感谢分享')
+                                // 用户确认分享后执行的回调函数
+
+                            },
+
+                            cancel: function () {
+                                alert('鄙视你哦')
+                                // 用户取消分享后执行的回调函数
+
+                            }
+
+                        });
+
+                    });
+                }
+            }
+        });
+      }
+    </script>
+</body>
+
+</html>
